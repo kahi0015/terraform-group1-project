@@ -1,0 +1,31 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.crash
+.terraform/**
+.terraform.lock.hcl
+
+# Local sensitive variable files
+secrets.tfvars
+
+# CLI configuration
+.terraformrc
+.terraform.d
+
+# Local .vscode settings
+.vscode/
+
+# Python virtual envs
+venv/
+env/
+
+# Logs
+*.log
+
+# Ignore plan outputs
+*.tfplan
+
+# State backup
+*.backup
+
+
