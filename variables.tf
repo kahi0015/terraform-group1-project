@@ -42,8 +42,21 @@ variable "tenant_id" {
     sensitive   = true
 }
 
-variable "admin_password" {
-    description = "Admin password for the Linux VM (use only if password auth is required)"
+variable "db_admin_username" {
+    description = "Admin username for MySQL"
+    type        = string
+}
+
+variable "db_admin_password" {
+    description = "Admin password for MySQL"
     type        = string
     sensitive   = true
 }
+
+variable "vm_admin_password" {
+    description = "Admin password for the Linux VM"
+    type        = string
+    sensitive   = true
+}
+
+

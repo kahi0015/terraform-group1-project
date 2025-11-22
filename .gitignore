@@ -28,4 +28,10 @@ env/
 # State backup
 *.backup
 
+# SQL scripts
+*.sql
+
+# sh scripts
+*.sh
+
 
