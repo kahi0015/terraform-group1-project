@@ -23,3 +23,8 @@ output "storage_container_name" {
   description = "Name of the Storage Container for datasets"
 }
 
+// Output for the dedicated analytics database created on the MySQL Flexible Server
+output "mysql_database_name" {
+  value       = azurerm_mysql_flexible_database.analytics_db.name
+  description = "Name of the MySQL analytics database used in the sandbox"
+}
