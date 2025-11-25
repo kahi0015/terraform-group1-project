@@ -42,6 +42,11 @@
 
 # 7. Run scp to copy the script (VM is not publicly accessible - Set temporary public ip first)
 
+- Go to VM -> Networking -> Network Settings -> Network Interface/IP Configurations -> internal (Primary) -> Associate public IP address ->
+  Create a public IP address (Standard)
+
+- In Network security: group cst8922group1-nsg -> SSH-Allow -> Source (My IP Address)
+
 ```bash
   scp ./scripts/sandboxdb.sql group1admin@<vm_public_ip>:/home/group1admin/
 ```

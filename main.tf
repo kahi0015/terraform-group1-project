@@ -120,9 +120,9 @@ resource "azurerm_network_security_group" "vm_nsg" {
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
-    source_port_range          = "*"  # allow from any source port - TODO: restrict based on student/Researcher IP ranges
+    source_port_range          = "*"  
     destination_port_range     = "22"
-    source_address_prefix      = "*"
+    source_address_prefix      = "*" # Allowed from any source - TODO: restrict in production to specific IPs
     destination_address_prefix = "*"
   }
 }
