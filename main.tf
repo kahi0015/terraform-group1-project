@@ -148,19 +148,19 @@ resource "azurerm_storage_account" "datasets" {
 resource "azurerm_storage_container" "raw_data" {
   name                  = "raw"
   container_access_type = "private"
-  storage_account_id    = azurerm_storage_account.datasets.id
+  storage_account_name  = azurerm_storage_account.datasets.name
 }
 
 resource "azurerm_storage_container" "processed_data" {
   name                  = "processed"
   container_access_type = "private"
-  storage_account_id    = azurerm_storage_account.datasets.id
+  storage_account_name  = azurerm_storage_account.datasets.name
 }
 
 resource "azurerm_storage_container" "reports" {
   name                  = "reports"
   container_access_type = "private"
-  storage_account_id    = azurerm_storage_account.datasets.id
+  storage_account_name  = azurerm_storage_account.datasets.name
 }
 
 // Lifecycle policy for cost-efficient data management

@@ -18,9 +18,13 @@ output "storage_account_name" {
   description = "Name of the Storage Account"
 }
 
-output "storage_container_name" {
-  value       = azurerm_storage_container.data_container.name
-  description = "Name of the Storage Container for datasets"
+output "storage_containers" {
+  value = {
+    raw       = azurerm_storage_container.raw_data.name
+    processed = azurerm_storage_container.processed_data.name
+    reports   = azurerm_storage_container.reports.name
+  }
+  description = "Names of the structured storage containers"
 }
 
 // Output for the dedicated analytics database created on the MySQL Flexible Server
