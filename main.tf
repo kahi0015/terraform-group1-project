@@ -32,6 +32,15 @@ resource "azurerm_resource_group" "main" {
   location = var.location
 }
 
+######## Log Analytics Workspace #####################################
+resource "azurerm_log_analytics_workspace" "law" {
+  name                = lower("${var.project_prefix}-law")
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
 ######### KEY VAULT RESOURCE #####################################
 resource "azurerm_key_vault" "main" {
   name                = lower("${var.project_prefix}-kv")
@@ -247,3 +256,26 @@ resource "azurerm_linux_virtual_machine" "main" {
 
   provision_vm_agent = true
 }
+
+######## VM EXTENSION - AZURE MONITOR AGENT (AMA) #####################################
+resource "azurerm_virtual_machine_extension" "ama" {
+  name                 = "AzureMonitorLinuxAgent"
+  virtual_machine_id   = azurerm_linux_virtual_machine.vm.id
+  publisher            = "Microsoft.Azure.Monitor"
+  type                 = "AzureMonitorLinuxAgent"
+  type_handler_version = "1.0"
+  auto_upgrade_minor_version = true
+}
+
+
+######## Diagnostic Settings #####################################
+resource "azurerm_monitor_diagnostic_setting" "vm_diag" {
+  name                       = lower("${var.project_prefix}-vm-diag")
+  target_resource_id         = azurerm_linux_virtual_machine.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
+
+  metric {
+    category = "AllMetrics"
+    enabled  = true
+  }
+  }

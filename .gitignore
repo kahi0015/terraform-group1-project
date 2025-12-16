@@ -29,7 +29,7 @@ env/
 *.backup
 
 # SQL scripts
-*.sql
+# *.sql
 
 # sh scripts
 *.sh

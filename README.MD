@@ -22,18 +22,19 @@ Everything can be **created and destroyed with a single Terraform command**.
 
 Terraform deploys the following Azure resources:
 
-| Component                   | Description                                            |
-|-----------------------------|--------------------------------------------------------|
-| Resource Group              | Container for all resources                            |
-| Virtual Network & Subnet    | Secure network for VM and database                     |
-| Ubuntu Virtual Machine      | Analytics compute node (Python, SQL tools, etc.)       |
-| Storage Account + Container | Stores raw and processed datasets                      |
-| MySQL Flexible Server       | Private, VNet-integrated analytics database            |
-| Azure Key Vault             | Stores secrets (credentials, passwords, etc.)          |
-| Network Security Group      | Controls inbound/outbound traffic, especially SSH      |
-| Temporary Public IP         | Used only for SSH and testing                          |
+| Component                   | Description                                       |
+| --------------------------- | ------------------------------------------------- |
+| Resource Group              | Container for all resources                       |
+| Virtual Network & Subnet    | Secure network for VM and database                |
+| Ubuntu Virtual Machine      | Analytics compute node (Python, SQL tools, etc.)  |
+| Storage Account + Container | Stores raw and processed datasets                 |
+| MySQL Flexible Server       | Private, VNet-integrated analytics database       |
+| Azure Key Vault             | Stores secrets (credentials, passwords, etc.)     |
+| Network Security Group      | Controls inbound/outbound traffic, especially SSH |
+| Temporary Public IP         | Used only for SSH and testing                     |
 
 ---
+
 ## Secrets Setup (`secrets.tfvars`)
 
 Before deploying the Terraform environment, you must create a local file named:
@@ -52,14 +53,14 @@ tenant_id              = ""
 db_admin_username      = ""
 db_admin_password      = ""
 vm_admin_password      = ""
-allowed_ssh_source_ip  = "" 
+allowed_ssh_source_ip  = ""
 ```
 
 ---
 
 ### Notes
 
-- Do not commit `secrets.tfvars` to GitHub  
+- Do not commit `secrets.tfvars` to GitHub
 - Terraform commands **must** include this file using `-var-file="secrets.tfvars"`.
 - The Service Principal values come from your Azure AD App Registration
 
@@ -164,7 +165,9 @@ Confirm with `yes` when prompted.
 
 - `secrets.tfvars` must exist for deployment.
 - Ensure the Service Principal credentials inside the file are correct.
+
 ---
+
 ## Service Principal Setup
 
 A Service Principal is required for Terraform authentication.
@@ -176,41 +179,71 @@ service-principal-setup.md
 ```
 
 This includes:
-- Creating the App Registration  
-- Generating `client_id` and `client_secret`  
-- Assigning the Contributor role  
-- Validating Terraform provider configuration  
+
+- Creating the App Registration
+- Generating `client_id` and `client_secret`
+- Assigning the Contributor role
+- Validating Terraform provider configuration
+
 ---
 
 ## Features Implemented
 
 ### Completed Features as of Part 3
-- Creation of Resource Group  
-- Virtual Network and Subnet  
-- Network Security Group with SSH rule  
-- Ubuntu Linux Virtual Machine  
-- Temporary Public IP Assignment  
-- Azure Storage Account and Container  
-- Azure Database for MySQL Flexible Server (private VNet integration)  
-- Azure Key Vault for secret management  
-- Terraform outputs (database name, resource IDs, etc.)  
-- Configurable SSH source IP variable (`allowed_ssh_source_ip`)  
-- SQL initialization workflow (upload & run schema file)  
-- Validation and debugging improvements  
+
+- Creation of Resource Group
+- Virtual Network and Subnet
+- Network Security Group with SSH rule
+- Ubuntu Linux Virtual Machine
+- Temporary Public IP Assignment
+- Azure Storage Account and Container
+- Azure Database for MySQL Flexible Server (private VNet integration)
+- Azure Key Vault for secret management
+- Terraform outputs (database name, resource IDs, etc.)
+- Configurable SSH source IP variable (`allowed_ssh_source_ip`)
+- SQL initialization workflow (upload & run schema file)
+- Validation and debugging improvements
 
 ### Planned for Part 4
-- Cloud-init automation for Jupyter, Python packages, MySQL tools  
-- Azure Monitor / Log Analytics integration  
-- Private Endpoint for Storage Account  
-- Improve NSG rules for production  
+
+- Cloud-init automation for Jupyter, Python packages, MySQL tools
+- Azure Monitor / Log Analytics integration
+- Private Endpoint for Storage Account
+- Improve NSG rules for production
+
 ---
 
+### Components Dependency Order (Part 4 - Continued here)
+
+The components must follow the below order in the configuration file:
+
+- Resource Group
+- Log Analytics Workspace
+- Key Vault
+- Key Vault Secrets
+- Virtual Network (VNet)
+- Subnet (general)
+- Subnet (MySQL delegated)
+- Network Security Group (NSG)
+- Private DNS Zone
+- Storage Account
+- Storage Container
+- MySQL Server
+- MySQL Database
+- Network Interface (NIC)
+- Virtual Machine (VM)
+- VM Extension - Azure Monitor Agent (AMA)
+- Diagnostic Settings
+
 ## Team - Group 1
-- Mohamad Kahil  
-- Bobby Lubberman  
-- Nezihe Tekin  
+
+- Mohamad Kahil
+- Bobby Lubberman
+- Nezihe Tekin
 - Adris Azimi
+
 ---
+
 ## References
 
 Documentation links relevant to this project:
@@ -220,9 +253,3 @@ Documentation links relevant to this project:
 
 - AzureRM Terraform Provider  
   https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
-
-
-
-
-
-
