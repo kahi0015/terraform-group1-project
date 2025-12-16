@@ -129,7 +129,7 @@ resource "azurerm_network_security_group" "vm_nsg" {
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
-    source_port_range          = "*"  
+    source_port_range          = "*"
     destination_port_range     = "22"
     source_address_prefix      = "*" # Allowed from any source - TODO: restrict in production to specific IPs
     destination_address_prefix = "*"
@@ -294,11 +294,11 @@ resource "azurerm_linux_virtual_machine" "main" {
 
 ######## VM EXTENSION - AZURE MONITOR AGENT (AMA) #####################################
 resource "azurerm_virtual_machine_extension" "ama" {
-  name                 = "AzureMonitorLinuxAgent"
-  virtual_machine_id   = azurerm_linux_virtual_machine.main.id
-  publisher            = "Microsoft.Azure.Monitor"
-  type                 = "AzureMonitorLinuxAgent"
-  type_handler_version = "1.0"
+  name                       = "AzureMonitorLinuxAgent"
+  virtual_machine_id         = azurerm_linux_virtual_machine.main.id
+  publisher                  = "Microsoft.Azure.Monitor"
+  type                       = "AzureMonitorLinuxAgent"
+  type_handler_version       = "1.0"
   auto_upgrade_minor_version = true
 }
 
@@ -313,4 +313,4 @@ resource "azurerm_monitor_diagnostic_setting" "vm_diag" {
     category = "AllMetrics"
     enabled  = true
   }
-  }
+}
