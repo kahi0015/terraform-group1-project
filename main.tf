@@ -153,11 +153,46 @@ resource "azurerm_storage_account" "datasets" {
   allow_nested_items_to_be_public = false
 }
 
-// Create the container for the datasets
-resource "azurerm_storage_container" "data_container" {
-  name                  = "data"
+// Create structured data containers for analytics workflow
+resource "azurerm_storage_container" "raw_data" {
+  name                  = "raw"
   container_access_type = "private"
   storage_account_name  = azurerm_storage_account.datasets.name
+}
+
+resource "azurerm_storage_container" "processed_data" {
+  name                  = "processed"
+  container_access_type = "private"
+  storage_account_name  = azurerm_storage_account.datasets.name
+}
+
+resource "azurerm_storage_container" "reports" {
+  name                  = "reports"
+  container_access_type = "private"
+  storage_account_name  = azurerm_storage_account.datasets.name
+}
+
+// Lifecycle policy for cost-efficient data management
+resource "azurerm_storage_management_policy" "datasets_lifecycle" {
+  storage_account_id = azurerm_storage_account.datasets.id
+
+  rule {
+    name    = "analytics-data-lifecycle"
+    enabled = true
+
+    filters {
+      prefix_match = ["raw/", "processed/", "reports/"]
+      blob_types   = ["blockBlob"]
+    }
+
+    actions {
+      base_blob {
+        tier_to_cool_after_days_since_modification_greater_than    = 30
+        tier_to_archive_after_days_since_modification_greater_than = 90
+        delete_after_days_since_modification_greater_than          = 365
+      }
+    }
+  }
 }
 
 ######## PRIVATE DNS ZONE #####################################

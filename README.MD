@@ -168,6 +168,33 @@ Confirm with `yes` when prompted.
 
 ---
 
+## CI/CD Pipeline
+
+The project includes a GitHub Actions workflow for continuous integration:
+
+**Location:** `.github/workflows/terraform-ci.yml`
+
+**Triggers:**
+
+- Push to `main` or `develop` branches
+- Pull requests to `main` branch
+
+**Pipeline Steps:**
+
+1. Checkout repository code
+2. Setup Terraform (version 1.0+)
+3. Format check (`terraform fmt -check -recursive`)
+4. Initialize Terraform (`terraform init`)
+5. Validate configuration (`terraform validate`)
+
+**Benefits:**
+
+- Ensures code formatting consistency
+- Catches syntax errors before deployment
+- Prevents merging broken Terraform configurations
+
+---
+
 ## Service Principal Setup
 
 A Service Principal is required for Terraform authentication.
@@ -204,12 +231,24 @@ This includes:
 - SQL initialization workflow (upload & run schema file)
 - Validation and debugging improvements
 
-### Planned for Part 4
+### Completed Features as of Part 4
 
-- Cloud-init automation for Jupyter, Python packages, MySQL tools
-- Azure Monitor / Log Analytics integration
-- Private Endpoint for Storage Account
-- Improve NSG rules for production
+- Creation of Resource Group
+- Virtual Network and Subnet
+- Network Security Group with SSH rule
+- Ubuntu Linux Virtual Machine
+- Temporary Public IP Assignment
+- Azure Storage Account with structured containers (raw, processed, reports)
+- Azure Database for MySQL Flexible Server (private VNet integration)
+- Azure Key Vault for secret management
+- Terraform outputs (database name, resource IDs, etc.)
+- Configurable SSH source IP variable (`allowed_ssh_source_ip`)
+- SQL initialization workflow (upload & run schema file)
+- Validation and debugging improvements
+- **CI/CD Pipeline** - GitHub Actions for Terraform format and validation
+- **Structured Data Containers** - Separate containers for analytics workflow stages
+- **Lifecycle Policies** - Automatic data tier management and retention (30/90/365 days)
+- **Log Analytics Workspace** - Centralized logging and monitoring (30-day retention)
 
 ---
 
