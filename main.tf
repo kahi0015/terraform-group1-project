@@ -4,7 +4,6 @@
 terraform {
   required_version = ">= 1.0"
 
-  // Declaring the required providers for this configuration
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -13,17 +12,13 @@ terraform {
   }
 }
 
+# IMPORTANT:
+# Use Azure CLI authentication for local runs (az login).
+# This avoids the Service Principal token parsing error you hit.
 provider "azurerm" {
   features {}
-
-  # Provider authentication via Key Vault secrets
-  subscription_id = var.subscription_id
-  client_id       = var.client_id
-  client_secret   = var.client_secret
-  tenant_id       = var.tenant_id
 }
 
-// Using the data source to get information about the current authenticated client
 data "azurerm_client_config" "current" {}
 
 ######## RESOURCE GROUP ################################
@@ -49,7 +44,6 @@ resource "azurerm_key_vault" "main" {
   tenant_id           = var.tenant_id
   sku_name            = "standard"
 
-  # Allow Terraform to manage secrets
   access_policy {
     tenant_id = var.tenant_id
     object_id = data.azurerm_client_config.current.object_id
@@ -90,16 +84,18 @@ resource "azurerm_virtual_network" "main" {
   resource_group_name = azurerm_resource_group.main.name
 }
 
-// Manages the subnet
+######## SUBNETS #####################################
 resource "azurerm_subnet" "main" {
   address_prefixes                = ["10.0.1.0/24"]
   name                            = lower("${var.project_prefix}-subnet")
   resource_group_name             = azurerm_resource_group.main.name
   virtual_network_name            = azurerm_virtual_network.main.name
   default_outbound_access_enabled = true # needed to reach Azure Storage and MySQL
+
+  # Required for Private Endpoints (v4.0-ready)
+  private_endpoint_network_policies = "Disabled"
 }
 
-// Manages the subnet for MySQL Flexible Server with delegation
 resource "azurerm_subnet" "mysql" {
   name                 = lower("${var.project_prefix}-mysql-subnet")
   resource_group_name  = azurerm_resource_group.main.name
@@ -131,13 +127,11 @@ resource "azurerm_network_security_group" "vm_nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*" # Allowed from any source - TODO: restrict in production to specific IPs
+    source_address_prefix      = "*" # TODO: restrict in production to specific IPs
     destination_address_prefix = "*"
   }
 }
 
-
-// Associate NSG with subnet
 resource "azurerm_subnet_network_security_group_association" "subnet_nsg" {
   subnet_id                 = azurerm_subnet.main.id
   network_security_group_id = azurerm_network_security_group.vm_nsg.id
@@ -151,9 +145,12 @@ resource "azurerm_storage_account" "datasets" {
   account_tier                    = "Standard"
   account_replication_type        = "LRS"
   allow_nested_items_to_be_public = false
+
+  # Baseline hardening (v4.0-ready)
+  min_tls_version            = "TLS1_2"
+  https_traffic_only_enabled = true
 }
 
-// Create structured data containers for analytics workflow
 resource "azurerm_storage_container" "raw_data" {
   name                  = "raw"
   container_access_type = "private"
@@ -172,7 +169,6 @@ resource "azurerm_storage_container" "reports" {
   storage_account_name  = azurerm_storage_account.datasets.name
 }
 
-// Lifecycle policy for cost-efficient data management
 resource "azurerm_storage_management_policy" "datasets_lifecycle" {
   storage_account_id = azurerm_storage_account.datasets.id
 
@@ -195,14 +191,47 @@ resource "azurerm_storage_management_policy" "datasets_lifecycle" {
   }
 }
 
-######## PRIVATE DNS ZONE #####################################
-// Private DNS zone for MySQL
+######## PRIVATE DNS ZONE (STORAGE BLOB) #####################################
+resource "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "blob_link" {
+  name                  = lower("${var.project_prefix}-blob-vnet-link")
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+}
+
+resource "azurerm_private_endpoint" "storage_blob_pe" {
+  name                = lower("${var.project_prefix}-st-blob-pe")
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.main.id
+
+  private_service_connection {
+    name                           = lower("${var.project_prefix}-st-blob-psc")
+    private_connection_resource_id = azurerm_storage_account.datasets.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "blob-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+
+  depends_on = [azurerm_private_dns_zone_virtual_network_link.blob_link]
+}
+
+######## PRIVATE DNS ZONE (MYSQL) #####################################
 resource "azurerm_private_dns_zone" "mysql" {
   name                = "privatelink.mysql.database.azure.com"
   resource_group_name = azurerm_resource_group.main.name
 }
 
-// Linking private DNS zone to virtual network
 resource "azurerm_private_dns_zone_virtual_network_link" "mysql" {
   name                  = lower("${var.project_prefix}-vnet-link")
   resource_group_name   = azurerm_resource_group.main.name
@@ -225,7 +254,7 @@ resource "azurerm_mysql_flexible_server" "main" {
 
   administrator_login          = azurerm_key_vault_secret.db_admin_username.value
   administrator_password       = azurerm_key_vault_secret.db_admin_password.value
-  delegated_subnet_id          = azurerm_subnet.mysql.id # MySQL delegated subnet enforces private access
+  delegated_subnet_id          = azurerm_subnet.mysql.id
   backup_retention_days        = 7
   geo_redundant_backup_enabled = false
   private_dns_zone_id          = azurerm_private_dns_zone.mysql.id
@@ -237,7 +266,6 @@ resource "azurerm_mysql_flexible_server" "main" {
   }
 }
 
-### MYSQL DATABASE 
 resource "azurerm_mysql_flexible_database" "analytics_db" {
   name                = "analyticsdb"
   resource_group_name = azurerm_resource_group.main.name
@@ -246,8 +274,7 @@ resource "azurerm_mysql_flexible_database" "analytics_db" {
   collation           = "utf8mb4_unicode_ci"
 }
 
-### VIRTUAL MACHINE 
-// Create internal network interface card (NIC)
+######## VIRTUAL MACHINE #####################################
 resource "azurerm_network_interface" "internal_nic" {
   name                = lower("${var.project_prefix}-nic")
   location            = azurerm_resource_group.main.location
@@ -259,11 +286,8 @@ resource "azurerm_network_interface" "internal_nic" {
     private_ip_address_allocation = "Dynamic"
     private_ip_address_version    = "IPv4"
   }
-
-  # ip_forwarding_enabled = false
 }
 
-// Create a virtual machine
 resource "azurerm_linux_virtual_machine" "main" {
   name                            = lower("${var.project_prefix}-vm")
   resource_group_name             = azurerm_resource_group.main.name
@@ -301,7 +325,6 @@ resource "azurerm_virtual_machine_extension" "ama" {
   type_handler_version       = "1.0"
   auto_upgrade_minor_version = true
 }
-
 
 ######## Diagnostic Settings #####################################
 resource "azurerm_monitor_diagnostic_setting" "vm_diag" {
