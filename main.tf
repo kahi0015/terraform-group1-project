@@ -96,7 +96,7 @@ resource "azurerm_subnet" "main" {
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = ["10.0.1.0/24"]
 
-  default_outbound_access_enabled           = true
+  default_outbound_access_enabled   = true
   private_endpoint_network_policies = "Disabled"
 
 }
