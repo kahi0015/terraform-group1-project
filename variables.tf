@@ -28,7 +28,7 @@ variable "name_suffix" {
 
   validation {
     condition     = can(regex("^[a-z0-9]{2,10}$", var.name_suffix))
-    error_message = "name_suffix must be lowercase alphanumeric (a-z, 0-9) and reasonably short (2-10 chars)."
+    error_message = "Name suffix must be lowercase alphanumeric (a-z, 0-9) and reasonably short (2-10 chars)."
   }
 }
 
