@@ -1,42 +1,26 @@
-// terraform block reference
+// Terraform block reference
 // https://developer.hashicorp.com/terraform/language/block/terraform
 
 terraform {
   required_version = ">= 1.0"
 
-  // Declaring the required providers for this configuration
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 2.0"
-    }
   }
 }
 
+# IMPORTANT:
+# Use Azure CLI authentication for local runs (az login).
 provider "azurerm" {
   features {}
-
-  # Provider authentication via Key Vault secrets
   subscription_id = var.subscription_id
-  client_id       = var.client_id
-  client_secret   = var.client_secret
   tenant_id       = var.tenant_id
 }
 
-provider "azuread" {
-  tenant_id = var.tenant_id
-}
-
-// Using the data source to get information about the current authenticated client
 data "azurerm_client_config" "current" {}
-
-data "azuread_service_principal" "group1_app" {
-  display_name = var.app_name
-}
 
 ######## RESOURCE GROUP ################################
 resource "azurerm_resource_group" "main" {
@@ -44,7 +28,7 @@ resource "azurerm_resource_group" "main" {
   location = var.location
 }
 
-######## Log Analytics Workspace #####################################
+######## LOG ANALYTICS WORKSPACE #####################################
 resource "azurerm_log_analytics_workspace" "law" {
   name                = lower("${var.project_prefix}-law")
   location            = azurerm_resource_group.main.location
@@ -53,15 +37,14 @@ resource "azurerm_log_analytics_workspace" "law" {
   retention_in_days   = 30
 }
 
-######### KEY VAULT RESOURCE #####################################
+######## KEY VAULT #####################################
 resource "azurerm_key_vault" "main" {
-  name                = lower("${var.project_prefix}-kv")
+  name                = lower("${var.project_prefix}-kv-${var.name_suffix}")
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   tenant_id           = var.tenant_id
   sku_name            = "standard"
 
-  # Allow Terraform to manage secrets
   access_policy {
     tenant_id = var.tenant_id
     object_id = data.azurerm_client_config.current.object_id
@@ -72,30 +55,14 @@ resource "azurerm_key_vault" "main" {
       "Set",
       "Delete",
       "Recover",
-      "Purge",
       "Backup",
       "Restore",
-    ]
-  }
-
-  # group1-app SP
-  access_policy {
-    tenant_id = var.tenant_id
-    object_id = data.azuread_service_principal.group1_app.object_id
-    secret_permissions = [
-      "Get",
-      "List",
-      "Set",
-      "Delete",
-      "Recover",
       "Purge",
-      "Backup",
-      "Restore",
     ]
   }
 }
 
-######### KEY VAULT SECRETS #####################################
+######## KEY VAULT SECRETS #####################################
 resource "azurerm_key_vault_secret" "db_admin_username" {
   name         = "db-admin-username"
   value        = var.db_admin_username
@@ -116,22 +83,24 @@ resource "azurerm_key_vault_secret" "vm_admin_password" {
 
 ######## VIRTUAL NETWORK #####################################
 resource "azurerm_virtual_network" "main" {
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.main.location
   name                = lower("${var.project_prefix}-vnet")
+  location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
+  address_space       = ["10.0.0.0/16"]
 }
 
-// Manages the subnet
+######## SUBNETS #####################################
 resource "azurerm_subnet" "main" {
-  address_prefixes                = ["10.0.1.0/24"]
-  name                            = lower("${var.project_prefix}-subnet")
-  resource_group_name             = azurerm_resource_group.main.name
-  virtual_network_name            = azurerm_virtual_network.main.name
-  default_outbound_access_enabled = true # needed to reach Azure Storage and MySQL
+  name                 = lower("${var.project_prefix}-subnet")
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.1.0/24"]
+
+  default_outbound_access_enabled   = true
+  private_endpoint_network_policies = "Disabled"
+
 }
 
-// Manages the subnet for MySQL Flexible Server with delegation
 resource "azurerm_subnet" "mysql" {
   name                 = lower("${var.project_prefix}-mysql-subnet")
   resource_group_name  = azurerm_resource_group.main.name
@@ -163,13 +132,11 @@ resource "azurerm_network_security_group" "vm_nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "*" # Allowed from any source - TODO: restrict in production to specific IPs
+    source_address_prefix      = var.allowed_ssh_source_ip
     destination_address_prefix = "*"
   }
 }
 
-
-// Associate NSG with subnet
 resource "azurerm_subnet_network_security_group_association" "subnet_nsg" {
   subnet_id                 = azurerm_subnet.main.id
   network_security_group_id = azurerm_network_security_group.vm_nsg.id
@@ -177,15 +144,17 @@ resource "azurerm_subnet_network_security_group_association" "subnet_nsg" {
 
 ######## STORAGE ACCOUNT #####################################
 resource "azurerm_storage_account" "datasets" {
-  name                            = lower("${var.project_prefix}datasets")
+  name                            = lower("cst8922g1ds${var.name_suffix}")
   resource_group_name             = azurerm_resource_group.main.name
   location                        = var.location
   account_tier                    = "Standard"
   account_replication_type        = "LRS"
   allow_nested_items_to_be_public = false
+
+  min_tls_version            = "TLS1_2"
+  https_traffic_only_enabled = true
 }
 
-// Create structured data containers for analytics workflow
 resource "azurerm_storage_container" "raw_data" {
   name                  = "raw"
   container_access_type = "private"
@@ -204,7 +173,6 @@ resource "azurerm_storage_container" "reports" {
   storage_account_name  = azurerm_storage_account.datasets.name
 }
 
-// Lifecycle policy for cost-efficient data management
 resource "azurerm_storage_management_policy" "datasets_lifecycle" {
   storage_account_id = azurerm_storage_account.datasets.id
 
@@ -227,14 +195,50 @@ resource "azurerm_storage_management_policy" "datasets_lifecycle" {
   }
 }
 
-######## PRIVATE DNS ZONE #####################################
-// Private DNS zone for MySQL
+######## PRIVATE DNS ZONE (STORAGE BLOB) #####################################
+resource "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "blob_link" {
+  name                  = lower("${var.project_prefix}-blob-vnet-link")
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+  registration_enabled  = false
+}
+
+resource "azurerm_private_endpoint" "storage_blob_pe" {
+  name                = lower("${var.project_prefix}-st-blob-pe")
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.main.id
+
+  private_service_connection {
+    name                           = lower("${var.project_prefix}-st-blob-psc")
+    private_connection_resource_id = azurerm_storage_account.datasets.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "blob-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+
+  depends_on = [
+    azurerm_private_dns_zone_virtual_network_link.blob_link,
+    azurerm_storage_account.datasets
+  ]
+}
+
+######## PRIVATE DNS ZONE (MYSQL) #####################################
 resource "azurerm_private_dns_zone" "mysql" {
   name                = "privatelink.mysql.database.azure.com"
   resource_group_name = azurerm_resource_group.main.name
 }
 
-// Linking private DNS zone to virtual network
 resource "azurerm_private_dns_zone_virtual_network_link" "mysql" {
   name                  = lower("${var.project_prefix}-vnet-link")
   resource_group_name   = azurerm_resource_group.main.name
@@ -255,12 +259,13 @@ resource "azurerm_mysql_flexible_server" "main" {
   location            = azurerm_resource_group.main.location
   sku_name            = "B_Standard_B1ms"
 
-  administrator_login          = azurerm_key_vault_secret.db_admin_username.value
-  administrator_password       = azurerm_key_vault_secret.db_admin_password.value
-  delegated_subnet_id          = azurerm_subnet.mysql.id # MySQL delegated subnet enforces private access
+  administrator_login    = azurerm_key_vault_secret.db_admin_username.value
+  administrator_password = azurerm_key_vault_secret.db_admin_password.value
+
+  delegated_subnet_id          = azurerm_subnet.mysql.id
+  private_dns_zone_id          = azurerm_private_dns_zone.mysql.id
   backup_retention_days        = 7
   geo_redundant_backup_enabled = false
-  private_dns_zone_id          = azurerm_private_dns_zone.mysql.id
 
   depends_on = [azurerm_private_dns_zone_virtual_network_link.mysql]
 
@@ -269,7 +274,6 @@ resource "azurerm_mysql_flexible_server" "main" {
   }
 }
 
-### MYSQL DATABASE 
 resource "azurerm_mysql_flexible_database" "analytics_db" {
   name                = "analyticsdb"
   resource_group_name = azurerm_resource_group.main.name
@@ -278,8 +282,7 @@ resource "azurerm_mysql_flexible_database" "analytics_db" {
   collation           = "utf8mb4_unicode_ci"
 }
 
-### VIRTUAL MACHINE 
-// Create internal network interface card (NIC)
+######## NETWORK INTERFACE #####################################
 resource "azurerm_network_interface" "internal_nic" {
   name                = lower("${var.project_prefix}-nic")
   location            = azurerm_resource_group.main.location
@@ -291,11 +294,9 @@ resource "azurerm_network_interface" "internal_nic" {
     private_ip_address_allocation = "Dynamic"
     private_ip_address_version    = "IPv4"
   }
-
-  # ip_forwarding_enabled = false
 }
 
-// Create a virtual machine
+######## VIRTUAL MACHINE #####################################
 resource "azurerm_linux_virtual_machine" "main" {
   name                            = lower("${var.project_prefix}-vm")
   resource_group_name             = azurerm_resource_group.main.name
@@ -334,8 +335,7 @@ resource "azurerm_virtual_machine_extension" "ama" {
   auto_upgrade_minor_version = true
 }
 
-
-######## Diagnostic Settings #####################################
+######## DIAGNOSTIC SETTINGS #####################################
 resource "azurerm_monitor_diagnostic_setting" "vm_diag" {
   name                       = lower("${var.project_prefix}-vm-diag")
   target_resource_id         = azurerm_linux_virtual_machine.main.id

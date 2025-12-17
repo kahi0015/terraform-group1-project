@@ -7,6 +7,8 @@
 
 # Local sensitive variable files
 secrets.tfvars
+terraform.tfvars
+
 
 # CLI configuration
 .terraformrc
