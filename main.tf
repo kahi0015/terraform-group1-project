@@ -38,7 +38,8 @@ resource "azurerm_log_analytics_workspace" "law" {
 
 ######### KEY VAULT RESOURCE #####################################
 resource "azurerm_key_vault" "main" {
-  name                = lower("${var.project_prefix}-kv")
+  # Key Vault names are globally unique -> add suffix
+  name                = lower("${var.project_prefix}-kv-${var.name_suffix}")
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   tenant_id           = var.tenant_id
@@ -139,7 +140,8 @@ resource "azurerm_subnet_network_security_group_association" "subnet_nsg" {
 
 ######## STORAGE ACCOUNT #####################################
 resource "azurerm_storage_account" "datasets" {
-  name                            = lower("${var.project_prefix}datasets")
+  # Storage account names are globally unique -> add suffix; must be lowercase letters/numbers only
+  name                            = lower("cst8922g1ds${var.name_suffix}")
   resource_group_name             = azurerm_resource_group.main.name
   location                        = var.location
   account_tier                    = "Standard"

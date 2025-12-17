@@ -18,6 +18,16 @@ variable "project_prefix" {
   default     = "cst8922group1"
 }
 
+# Suffix to make globally-unique resource names (Key Vault / Storage Account)
+# Example usage:
+#   Key Vault:       "${var.project_prefix}-kv-${var.name_suffix}"
+#   Storage Account: "${var.project_prefix}datasets${var.name_suffix}" (no hyphens, lowercase)
+variable "name_suffix" {
+  description = "Suffix to make globally unique names for Key Vault and Storage Account"
+  type        = string
+  default     = "nt01"
+}
+
 variable "subscription_id" {
   description = "The Subscription ID for the Azure account"
   type        = string
