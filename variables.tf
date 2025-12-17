@@ -82,3 +82,15 @@ variable "allowed_ssh_source_ip" {
   type        = string
   default     = "*"
 }
+
+# Common tags for all resources
+variable "common_tags" {
+  description = "Common tags to apply to all resources"
+  type        = map(string)
+  default = {
+    Project     = "CST8922-Analytics-Sandbox"
+    Environment = "Development"
+    Team        = "Group1"
+    ManagedBy   = "Terraform"
+  }
+}

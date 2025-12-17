@@ -26,6 +26,7 @@ data "azurerm_client_config" "current" {}
 resource "azurerm_resource_group" "main" {
   name     = "${var.project_prefix}-rg"
   location = var.location
+  tags     = var.common_tags
 }
 
 ######## LOG ANALYTICS WORKSPACE #####################################
@@ -44,6 +45,7 @@ resource "azurerm_key_vault" "main" {
   resource_group_name = azurerm_resource_group.main.name
   tenant_id           = var.tenant_id
   sku_name            = "standard"
+  tags                = var.common_tags
 
   access_policy {
     tenant_id = var.tenant_id
@@ -153,6 +155,7 @@ resource "azurerm_storage_account" "datasets" {
 
   min_tls_version            = "TLS1_2"
   https_traffic_only_enabled = true
+  tags                       = var.common_tags
 }
 
 resource "azurerm_storage_container" "raw_data" {
@@ -323,6 +326,7 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
 
   provision_vm_agent = true
+  tags               = var.common_tags
 }
 
 ######## VM EXTENSION - AZURE MONITOR AGENT (AMA) #####################################
