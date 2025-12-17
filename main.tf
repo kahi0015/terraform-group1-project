@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -23,8 +27,16 @@ provider "azurerm" {
   tenant_id       = var.tenant_id
 }
 
+provider "azuread" {
+  tenant_id = var.tenant_id
+}
+
 // Using the data source to get information about the current authenticated client
 data "azurerm_client_config" "current" {}
+
+data "azuread_service_principal" "group1_app" {
+  display_name = var.app_name
+}
 
 ######## RESOURCE GROUP ################################
 resource "azurerm_resource_group" "main" {
@@ -59,6 +71,26 @@ resource "azurerm_key_vault" "main" {
       "List",
       "Set",
       "Delete",
+      "Recover",
+      "Purge",
+      "Backup",
+      "Restore",
+    ]
+  }
+
+  # group1-app SP
+  access_policy {
+    tenant_id = var.tenant_id
+    object_id = data.azuread_service_principal.group1_app.object_id
+    secret_permissions = [
+      "Get",
+      "List",
+      "Set",
+      "Delete",
+      "Recover",
+      "Purge",
+      "Backup",
+      "Restore",
     ]
   }
 }
